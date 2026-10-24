@@ -1,16 +1,14 @@
 const express = require('express');
 const pool = require('../config/database');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.post('/', async (req, res, next) => {
-  const { showtimeId, seatIds, guestName, guestLogin } = req.body;
+router.post('/', requireAuth, async (req, res, next) => {
+  const { showtimeId, seatIds } = req.body;
 
   if (!showtimeId || !Array.isArray(seatIds) || seatIds.length === 0) {
     return res.status(400).json({ error: 'Не указан сеанс или места' });
-  }
-  if (!guestLogin) {
-    return res.status(400).json({ error: 'Войдите в личный кабинет перед покупкой' });
   }
   if (seatIds.some((seatId) => !Number.isInteger(seatId) || seatId <= 0)
     || new Set(seatIds).size !== seatIds.length) {
@@ -69,7 +67,7 @@ router.post('/', async (req, res, next) => {
         `INSERT INTO tickets (guest_email, guest_name, showtime_id, seat_id, price, status)
          VALUES ($1, $2, $3, $4, $5, 'paid')
          RETURNING id`,
-        [guestLogin, guestName || null, showtimeId, seatId, price]
+        [req.user.email, req.user.name, showtimeId, seatId, price]
       );
       ticketIds.push(result.rows[0].id);
     }
@@ -88,7 +86,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.get('/guest/:login', async (req, res, next) => {
+router.get('/me', requireAuth, async (req, res, next) => {
   try {
     const { rows } = await pool.query(
       `SELECT t.id, t.price, t.status, t.created_at, t.guest_email,
@@ -105,7 +103,7 @@ router.get('/guest/:login', async (req, res, next) => {
        JOIN seats s ON s.id = t.seat_id
        WHERE LOWER(t.guest_email) = LOWER($1)
        ORDER BY st.start_time DESC`,
-      [req.params.login]
+      [req.user.email]
     );
     res.json(rows);
   } catch (err) {

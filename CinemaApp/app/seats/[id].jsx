@@ -22,8 +22,7 @@ export default function SeatsScreen() {
   const [error, setError] = useState(null);
   const [paying, setPaying] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [login, setLogin] = useState('');
-  const [name, setName] = useState('');
+  const [session, setSession] = useState(null);
   const [formError, setFormError] = useState(null);
 
   useEffect(() => {
@@ -60,9 +59,7 @@ export default function SeatsScreen() {
 
   useEffect(() => {
     loadSession().then((session) => {
-      if (!session) return;
-      setLogin(session.user.login);
-      setName(session.user.name);
+      setSession(session);
     });
   }, []);
 
@@ -111,7 +108,7 @@ export default function SeatsScreen() {
       return;
     }
     if (selected.length === 0) return;
-    if (!login) {
+    if (!session) {
       alert('Для покупки билета войдите в личный кабинет');
       router.push('/profile');
       return;
@@ -123,11 +120,9 @@ export default function SeatsScreen() {
     setPaying(true);
     setFormError(null);
     try {
-      const booking = await api.bookTickets({
+      const booking = await api.bookTickets(session.token, {
         showtimeId: showtimeId,
         seatIds: selected,
-        guestLogin: login,
-        guestName: name.trim() || undefined,
       });
       setModalVisible(false);
       alert(

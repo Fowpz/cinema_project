@@ -29,14 +29,20 @@ export const api = {
   getMovie: (id) => request(`/movies/${id}`),
   getShowtime: (id) => request(`/showtimes/${id}`),
   getSeats: (showtimeId) => request(`/showtimes/${showtimeId}/seats`),
-  bookTickets: (payload) =>
+  bookTickets: (token, payload) =>
     request(`/tickets`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     }),
-  getUserTickets: (userId) => request(`/tickets/user/${userId}`),
-  getGuestTickets: (login) =>
-    request(`/tickets/guest/${encodeURIComponent(login)}`),
+  getMyTickets: (token) =>
+    request('/tickets/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+  getCurrentUser: (token) =>
+    request('/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   register: (name, login, password) =>
     request('/auth/register', {
       method: 'POST',

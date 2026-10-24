@@ -2,9 +2,17 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { JWT_ALGORITHM, getJwtSecret } = require('../config/jwt');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+function createToken(userId) {
+  return jwt.sign({ userId }, getJwtSecret(), {
+    algorithm: JWT_ALGORITHM,
+    expiresIn: '30d',
+  });
+}
 
 function toUser(row) {
   return { id: row.id, login: row.email, name: row.name, role: row.role };
@@ -24,7 +32,7 @@ router.post('/register', async (req, res, next) => {
       [login, passwordHash, name || login]
     );
     const user = toUser(rows[0]);
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = createToken(user.id);
     res.status(201).json({ user, token });
   } catch (error) {
     if (error.code === '23505') return res.status(409).json({ error: 'Такой логин уже занят' });
@@ -51,20 +59,13 @@ router.post('/login', async (req, res, next) => {
       await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, rows[0].id]);
     }
     const user = toUser(rows[0]);
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = createToken(user.id);
     res.json({ user, token });
   } catch (error) { next(error); }
 });
 
-router.get('/me', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Не авторизован' });
-  try {
-    const { userId } = jwt.verify(token, JWT_SECRET);
-    const { rows } = await pool.query('SELECT id, email, name, role FROM users WHERE id = $1', [userId]);
-    if (!rows.length) return res.status(404).json({ error: 'Пользователь не найден' });
-    res.json(toUser(rows[0]));
-  } catch { res.status(401).json({ error: 'Неверная или истёкшая сессия' }); }
+router.get('/me', requireAuth, (req, res) => {
+  res.json(toUser(req.user));
 });
 
 module.exports = router;

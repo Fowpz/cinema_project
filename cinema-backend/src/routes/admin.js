@@ -1,27 +1,10 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const pool = require('../config/database');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { addShowtime, createShowtime, isValidDate, isValidTime } = require('../services/showtimes');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-
-function requireAdmin(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Требуется авторизация' });
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    pool.query('SELECT id, role FROM users WHERE id = $1', [payload.userId]).then(({ rows }) => {
-      if (!rows.length || rows[0].role !== 'admin') return res.status(403).json({ error: 'Доступ только для администратора' });
-      req.userId = rows[0].id;
-      next();
-    }).catch(next);
-  } catch {
-    return res.status(401).json({ error: 'Сессия истекла. Войдите снова.' });
-  }
-}
-
-router.use(requireAdmin);
+router.use(requireAuth, requireAdmin);
 
 router.get('/halls', async (req, res, next) => {
   try {

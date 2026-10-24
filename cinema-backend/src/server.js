@@ -1,5 +1,9 @@
 require('dotenv').config();
 
+const { getJwtSecret } = require('./config/jwt');
+
+getJwtSecret();
+
 const app = require('./app');
 
 const PORT = process.env.PORT || 4000;

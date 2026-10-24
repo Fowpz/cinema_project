@@ -57,10 +57,10 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const fetchTickets = async (value) => {
+  const fetchTickets = async (token) => {
     setLoading(true);
     try {
-      setTickets(await api.getGuestTickets(value));
+      setTickets(await api.getMyTickets(token));
     } catch (requestError) {
       setError(requestError.message || 'Не удалось загрузить билеты');
     } finally {
@@ -80,9 +80,12 @@ export default function ProfileScreen() {
           return;
         }
 
-        setUser(session.user);
-        setLogin(session.user.login);
-        fetchTickets(session.user.login);
+        const currentUser = await api.getCurrentUser(session.token);
+        if (!isActive) return;
+        await saveSession({ token: session.token, user: currentUser });
+        setUser(currentUser);
+        setLogin(currentUser.login);
+        fetchTickets(session.token);
       } catch (requestError) {
         if (!isActive) return;
         setError(requestError.message || 'Не удалось восстановить сессию');
@@ -112,7 +115,7 @@ export default function ProfileScreen() {
       await saveSession(session);
       setUser(session.user);
       setPassword('');
-      fetchTickets(session.user.login);
+      fetchTickets(session.token);
     } catch (requestError) {
       setError(requestError.message || 'Не удалось выполнить вход');
     } finally {
