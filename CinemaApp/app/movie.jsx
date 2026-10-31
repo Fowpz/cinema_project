@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { api } from '../../src/services/api';
+import { api } from '../src/services/api';
 export default function MovieDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -116,7 +116,12 @@ export default function MovieDetailScreen() {
                     <Pressable
                       key={showtime.id}
                       style={styles.chip}
-                      onPress={() => router.push(`/seats/${showtime.id}`)}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/seats',
+                          params: { id: showtime.id },
+                        })
+                      }
                     >
                       <Text style={styles.chipTime}>{showtime.time}</Text>
                       <Text style={styles.chipMeta}>

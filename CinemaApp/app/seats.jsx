@@ -9,8 +9,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { api } from '../../src/services/api';
-import { loadSession } from '../../src/services/auth';
+import { api } from '../src/services/api';
+import { loadSession } from '../src/services/auth';
 export default function SeatsScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();

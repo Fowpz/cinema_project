@@ -156,7 +156,14 @@ export default function HomeScreen() {
                   key={movie.id}
                   style={[styles.movieRow, isWide && styles.movieRowWide]}
                 >
-                  <Pressable onPress={() => router.push(`/movie/${movie.id}`)}>
+                  <Pressable
+                    onPress={() =>
+                      router.push({
+                        pathname: '/movie',
+                        params: { id: movie.id },
+                      })
+                    }
+                  >
                     {movie.posterUrl ? (
                       <Image
                         source={{ uri: movie.posterUrl }}
@@ -184,7 +191,12 @@ export default function HomeScreen() {
 
                   <View style={styles.info}>
                     <Pressable
-                      onPress={() => router.push(`/movie/${movie.id}`)}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/movie',
+                          params: { id: movie.id },
+                        })
+                      }
                     >
                       <Text style={styles.movieTitle}>
                         {movie.title}{' '}
@@ -218,7 +230,10 @@ export default function HomeScreen() {
                                 key={showtime.id}
                                 style={styles.timeChip}
                                 onPress={() =>
-                                  router.push(`/seats/${showtime.id}`)
+                                  router.push({
+                                    pathname: '/seats',
+                                    params: { id: showtime.id },
+                                  })
                                 }
                               >
                                 <Text style={styles.timeText}>

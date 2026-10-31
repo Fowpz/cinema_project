@@ -1,7 +1,10 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+const hostUri = Constants.expoConfig?.hostUri;
+const packagerHost = hostUri?.slice(0, hostUri.lastIndexOf(':'));
 const API_URL = Platform.select({
   web: 'http://localhost:4000/api',
-  default: 'http://10.104.174.182:4000/api',
+  default: `http://${packagerHost || 'localhost'}:4000/api`,
 });
 class ApiError extends Error {
   constructor(message, status) {
