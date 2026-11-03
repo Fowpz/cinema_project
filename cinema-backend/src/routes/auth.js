@@ -1,9 +1,13 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
 const { JWT_ALGORITHM, getJwtSecret } = require('../config/jwt');
 const { requireAuth } = require('../middleware/auth');
+const {
+  createUser,
+  getUserByEmail,
+  updateUserPasswordHash,
+} = require('../services/auth');
 
 const router = express.Router();
 
@@ -27,11 +31,8 @@ router.post('/register', async (req, res, next) => {
   }
   try {
     const passwordHash = await bcrypt.hash(password, 10);
-    const { rows } = await pool.query(
-      'INSERT INTO users (email, password_hash, name) VALUES ($1, $2, $3) RETURNING id, email, name, role',
-      [login, passwordHash, name || login]
-    );
-    const user = toUser(rows[0]);
+    const row = await createUser({ email: login, passwordHash, name: name || login });
+    const user = toUser(row);
     const token = createToken(user.id);
     res.status(201).json({ user, token });
   } catch (error) {
@@ -44,11 +45,11 @@ router.post('/login', async (req, res, next) => {
   const login = String(req.body.login || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [login]);
-    if (!rows.length) {
+    const row = await getUserByEmail(login);
+    if (!row) {
       return res.status(401).json({ error: 'Неверный логин или пароль' });
     }
-    const storedPassword = rows[0].password_hash;
+    const storedPassword = row.password_hash;
     const isBcryptHash = /^\$2[aby]\$/.test(storedPassword);
     const passwordMatches = isBcryptHash
       ? await bcrypt.compare(password, storedPassword)
@@ -56,9 +57,9 @@ router.post('/login', async (req, res, next) => {
     if (!passwordMatches) return res.status(401).json({ error: 'Неверный логин или пароль' });
     if (!isBcryptHash) {
       const passwordHash = await bcrypt.hash(password, 10);
-      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, rows[0].id]);
+      await updateUserPasswordHash(row.id, passwordHash);
     }
-    const user = toUser(rows[0]);
+    const user = toUser(row);
     const token = createToken(user.id);
     res.json({ user, token });
   } catch (error) { next(error); }

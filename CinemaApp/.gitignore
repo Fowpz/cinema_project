@@ -33,8 +33,6 @@ yarn-error.*
 # local env files
 .env*.local
 
-example
-
 # generated native folders
 /ios
 /android

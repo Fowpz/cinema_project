@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useKeyboardLift } from '../src/hooks/useKeyboardLift';
+import ShowtimeFields from '../src/features/admin/components/ShowtimeFields';
 import { api } from '../src/services/api';
 import { loadSession } from '../src/services/auth';
 function today() {
@@ -48,6 +52,8 @@ export default function AdminScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const scrollRef = useRef(null);
+  const { keyboardOpen, onScroll } = useKeyboardLift(scrollRef);
 
   useEffect(() => {
     let isActive = true;
@@ -88,6 +94,14 @@ export default function AdminScreen() {
     };
   }, []);
 
+  const movieOptions = movies.map((movie) => {
+    const sameTitle = movies.filter((item) => item.title === movie.title);
+    return {
+      value: movie.id,
+      label:
+        sameTitle.length > 1 ? `${movie.title} (№${movie.id})` : movie.title,
+    };
+  });
   const updateShowtime = (index, patch) => {
     setShowtimes((current) =>
       current.map((item, itemIndex) =>
@@ -163,308 +177,238 @@ export default function AdminScreen() {
       </View>
     );
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.navigation}>
-        <Pressable style={styles.navButton} onPress={() => router.push('/')}>
-          <Text style={styles.link}>Сеансы</Text>
-        </Pressable>
-        <Pressable
-          style={styles.navButton}
-          onPress={() => router.push('/profile')}
-        >
-          <Text style={styles.link}>Личный кабинет</Text>
-        </Pressable>
-      </View>
-      <Text style={styles.title}>Управление афишей</Text>
-      <Text style={styles.subtitle}>
-        Добавляйте фильмы и планируйте для них сеансы.
-      </Text>
-      <View style={styles.tabs}>
-        <Pressable
-          style={[styles.tab, mode === 'showtime' && styles.tabActive]}
-          onPress={() => {
-            setMode('showtime');
-            setMessage(null);
-          }}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              mode === 'showtime' && styles.tabTextActive,
-            ]}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="padding"
+      enabled={Platform.OS !== 'web'}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.flex}
+        contentContainerStyle={[
+          styles.content,
+          keyboardOpen && styles.contentKeyboard,
+        ]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <View style={styles.navigation}>
+          <Pressable style={styles.navButton} onPress={() => router.push('/')}>
+            <Text style={styles.link}>Сеансы</Text>
+          </Pressable>
+          <Pressable
+            style={styles.navButton}
+            onPress={() => router.push('/profile')}
           >
-            Создать сеанс
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, mode === 'movie' && styles.tabActive]}
-          onPress={() => {
-            setMode('movie');
-            setMessage(null);
-          }}
-        >
-          <Text
-            style={[styles.tabText, mode === 'movie' && styles.tabTextActive]}
+            <Text style={styles.link}>Личный кабинет</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.title}>Управление афишей</Text>
+        <Text style={styles.subtitle}>
+          Добавляйте фильмы и планируйте для них сеансы.
+        </Text>
+        <View style={styles.tabs}>
+          <Pressable
+            style={[styles.tab, mode === 'showtime' && styles.tabActive]}
+            onPress={() => {
+              setMode('showtime');
+              setMessage(null);
+            }}
           >
-            Добавить фильм
-          </Text>
-        </Pressable>
-      </View>
+            <Text
+              style={[
+                styles.tabText,
+                mode === 'showtime' && styles.tabTextActive,
+              ]}
+            >
+              Создать сеанс
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, mode === 'movie' && styles.tabActive]}
+            onPress={() => {
+              setMode('movie');
+              setMessage(null);
+            }}
+          >
+            <Text
+              style={[styles.tabText, mode === 'movie' && styles.tabTextActive]}
+            >
+              Добавить фильм
+            </Text>
+          </Pressable>
+        </View>
 
-      {mode === 'movie' ? (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Фильм</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Название фильма"
-              placeholderTextColor="#7890a4"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <View style={styles.row}>
+        {mode === 'movie' ? (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Фильм</Text>
               <TextInput
-                style={[styles.input, styles.half]}
-                placeholder="Возраст, например 12+"
+                style={styles.inputPlain}
+                placeholder="Название фильма"
                 placeholderTextColor="#7890a4"
-                value={ageRating}
-                onChangeText={setAgeRating}
+                value={title}
+                onChangeText={setTitle}
+              />
+              <View style={styles.row}>
+                <TextInput
+                  style={[styles.inputPlain, styles.half]}
+                  placeholder="Возраст, например 12+"
+                  placeholderTextColor="#7890a4"
+                  value={ageRating}
+                  onChangeText={setAgeRating}
+                />
+                <TextInput
+                  style={[styles.inputPlain, styles.half]}
+                  placeholder="Длительность, мин"
+                  placeholderTextColor="#7890a4"
+                  keyboardType="number-pad"
+                  value={duration}
+                  onChangeText={setDuration}
+                />
+              </View>
+              <TextInput
+                style={styles.inputPlain}
+                placeholder="Жанры через запятую"
+                placeholderTextColor="#7890a4"
+                value={genres}
+                onChangeText={setGenres}
               />
               <TextInput
-                style={[styles.input, styles.half]}
-                placeholder="Длительность, мин"
+                style={styles.inputPlain}
+                placeholder="Ссылка на изображение постера"
                 placeholderTextColor="#7890a4"
-                keyboardType="number-pad"
-                value={duration}
-                onChangeText={setDuration}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                value={posterUrl}
+                onChangeText={setPosterUrl}
+              />
+              <TextInput
+                style={[styles.inputPlain, styles.description]}
+                placeholder="Описание фильма"
+                placeholderTextColor="#7890a4"
+                multiline
+                value={description}
+                onChangeText={setDescription}
               />
             </View>
-            <TextInput
-              style={styles.input}
-              placeholder="Жанры через запятую"
-              placeholderTextColor="#7890a4"
-              value={genres}
-              onChangeText={setGenres}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Ссылка на изображение постера"
-              placeholderTextColor="#7890a4"
-              autoCapitalize="none"
-              value={posterUrl}
-              onChangeText={setPosterUrl}
-            />
-            <TextInput
-              style={[styles.input, styles.description]}
-              placeholder="Описание фильма"
-              placeholderTextColor="#7890a4"
-              multiline
-              value={description}
-              onChangeText={setDescription}
-            />
-          </View>
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Сеансы</Text>
-              <Pressable
-                onPress={() =>
-                  halls[0] &&
-                  setShowtimes((items) => [
-                    ...items,
-                    createDefaultShowtime(halls[0].id),
-                  ])
-                }
-              >
-                <Text style={styles.add}>+ Добавить</Text>
-              </Pressable>
-            </View>
-            {showtimes.map((showtime, index) => (
-              <View key={index} style={styles.showtime}>
-                <Text style={styles.label}>Зал</Text>
-                <View style={styles.halls}>
-                  {halls.map((hall) => (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Сеансы</Text>
+                <Pressable
+                  onPress={() =>
+                    halls[0] &&
+                    setShowtimes((items) => [
+                      ...items,
+                      createDefaultShowtime(halls[0].id),
+                    ])
+                  }
+                >
+                  <Text style={styles.add}>+ Добавить</Text>
+                </Pressable>
+              </View>
+              {showtimes.map((showtime, index) => (
+                <View key={index} style={styles.showtime}>
+                  <ShowtimeFields
+                    value={showtime}
+                    halls={halls}
+                    onChange={(patch) => updateShowtime(index, patch)}
+                  />
+                  {showtimes.length > 1 && (
                     <Pressable
-                      key={hall.id}
+                      onPress={() =>
+                        setShowtimes((items) =>
+                          items.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    >
+                      <Text style={styles.remove}>Удалить сеанс</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+            </View>
+            {message && <Text style={styles.message}>{message}</Text>}
+            <Pressable
+              style={[
+                styles.save,
+                (saving || halls.length === 0) && styles.saveDisabled,
+              ]}
+              disabled={saving || halls.length === 0}
+              onPress={submit}
+            >
+              <Text style={styles.saveText}>
+                {saving ? 'Сохраняем…' : 'Добавить фильм в афишу'}
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Новый сеанс</Text>
+            {movies.length === 0 ? (
+              <Text style={styles.empty}>Сначала добавьте фильм в афишу.</Text>
+            ) : (
+              <>
+                <Text style={styles.label}>Фильм</Text>
+                <View style={styles.halls}>
+                  {movieOptions.map((option) => (
+                    <Pressable
+                      key={option.value}
                       style={[
                         styles.hallChip,
-                        hall.id === showtime.hallId && styles.hallChipActive,
+                        option.value === movieId && styles.hallChipActive,
                       ]}
-                      onPress={() => updateShowtime(index, { hallId: hall.id })}
+                      onPress={() => {
+                        setMovieId(option.value);
+                        setMessage(null);
+                      }}
                     >
                       <Text
                         style={[
                           styles.hallText,
-                          hall.id === showtime.hallId && styles.hallTextActive,
+                          option.value === movieId && styles.hallTextActive,
                         ]}
                       >
-                        {hall.name}
+                        {option.label}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
-                <View style={styles.row}>
-                  <TextInput
-                    style={[styles.input, styles.third]}
-                    value={showtime.date}
-                    onChangeText={(date) => updateShowtime(index, { date })}
-                    placeholder="ГГГГ-ММ-ДД"
-                    placeholderTextColor="#7890a4"
-                  />
-                  <TextInput
-                    style={[styles.input, styles.third]}
-                    value={showtime.time}
-                    onChangeText={(time) => updateShowtime(index, { time })}
-                    placeholder="ЧЧ:ММ"
-                    placeholderTextColor="#7890a4"
-                  />
-                  <TextInput
-                    style={[styles.input, styles.third]}
-                    value={String(showtime.price)}
-                    onChangeText={(price) =>
-                      updateShowtime(index, { price: Number(price) })
-                    }
-                    keyboardType="number-pad"
-                    placeholder="Цена"
-                    placeholderTextColor="#7890a4"
-                  />
-                </View>
-                {showtimes.length > 1 && (
-                  <Pressable
-                    onPress={() =>
-                      setShowtimes((items) =>
-                        items.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                  >
-                    <Text style={styles.remove}>Удалить сеанс</Text>
-                  </Pressable>
-                )}
-              </View>
-            ))}
-          </View>
-          {message && <Text style={styles.message}>{message}</Text>}
-          <Pressable
-            style={[
-              styles.save,
-              (saving || halls.length === 0) && styles.saveDisabled,
-            ]}
-            disabled={saving || halls.length === 0}
-            onPress={submit}
-          >
-            <Text style={styles.saveText}>
-              {saving ? 'Сохраняем…' : 'Добавить фильм в афишу'}
-            </Text>
-          </Pressable>
-        </>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Новый сеанс</Text>
-          <Text style={styles.label}>Фильм</Text>
-          {movies.length === 0 ? (
-            <Text style={styles.empty}>Сначала добавьте фильм в афишу.</Text>
-          ) : (
-            <View style={styles.halls}>
-              {movies.map((movie) => (
-                <Pressable
-                  key={movie.id}
-                  style={[
-                    styles.hallChip,
-                    movie.id === movieId && styles.hallChipActive,
-                  ]}
-                  onPress={() => {
-                    setMovieId(movie.id);
-                    setMessage(null);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.hallText,
-                      movie.id === movieId && styles.hallTextActive,
-                    ]}
-                  >
-                    {movie.title}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-          <Text style={styles.label}>Зал</Text>
-          <View style={styles.halls}>
-            {halls.map((hall) => (
-              <Pressable
-                key={hall.id}
-                style={[
-                  styles.hallChip,
-                  hall.id === newShowtime.hallId && styles.hallChipActive,
-                ]}
-                onPress={() =>
-                  setNewShowtime((current) => ({ ...current, hallId: hall.id }))
-                }
-              >
-                <Text
-                  style={[
-                    styles.hallText,
-                    hall.id === newShowtime.hallId && styles.hallTextActive,
-                  ]}
-                >
-                  {hall.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <View style={styles.row}>
-            <TextInput
-              style={[styles.input, styles.third]}
-              value={newShowtime.date}
-              onChangeText={(date) =>
-                setNewShowtime((current) => ({ ...current, date }))
+              </>
+            )}
+            <ShowtimeFields
+              value={newShowtime}
+              halls={halls}
+              onChange={(patch) =>
+                setNewShowtime((current) => ({ ...current, ...patch }))
               }
-              placeholder="ГГГГ-ММ-ДД"
-              placeholderTextColor="#7890a4"
             />
-            <TextInput
-              style={[styles.input, styles.third]}
-              value={newShowtime.time}
-              onChangeText={(time) =>
-                setNewShowtime((current) => ({ ...current, time }))
-              }
-              placeholder="ЧЧ:ММ"
-              placeholderTextColor="#7890a4"
-            />
-            <TextInput
-              style={[styles.input, styles.third]}
-              value={String(newShowtime.price)}
-              onChangeText={(price) =>
-                setNewShowtime((current) => ({
-                  ...current,
-                  price: Number(price),
-                }))
-              }
-              keyboardType="number-pad"
-              placeholder="Цена"
-              placeholderTextColor="#7890a4"
-            />
+            {message && <Text style={styles.message}>{message}</Text>}
+            <Pressable
+              style={[
+                styles.save,
+                (saving || movies.length === 0) && styles.saveDisabled,
+              ]}
+              disabled={saving || movies.length === 0}
+              onPress={submitShowtime}
+            >
+              <Text style={styles.saveText}>
+                {saving ? 'Сохраняем…' : 'Создать сеанс'}
+              </Text>
+            </Pressable>
           </View>
-          {message && <Text style={styles.message}>{message}</Text>}
-          <Pressable
-            style={[
-              styles.save,
-              (saving || movies.length === 0) && styles.saveDisabled,
-            ]}
-            disabled={saving || movies.length === 0}
-            onPress={submitShowtime}
-          >
-            <Text style={styles.saveText}>
-              {saving ? 'Сохраняем…' : 'Создать сеанс'}
-            </Text>
-          </Pressable>
-        </View>
-      )}
-    </ScrollView>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 const styles = StyleSheet.create({
+  contentKeyboard: { paddingBottom: 260 },
+  flex: { flex: 1 },
   container: { flex: 1, backgroundColor: '#f5f8fc' },
   content: {
     padding: 16,
@@ -545,6 +489,17 @@ const styles = StyleSheet.create({
     color: '#17324d',
     marginBottom: 10,
     fontSize: 14,
+  },
+  inputPlain: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#cddce8',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: '#17324d',
+    fontSize: 15,
+    marginBottom: 10,
   },
   row: { flexDirection: 'row', gap: 10 },
   half: { flex: 1 },

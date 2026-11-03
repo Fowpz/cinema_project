@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
 const { JWT_ALGORITHM, getJwtSecret } = require('../config/jwt');
+const { getUserById } = require('../services/auth');
 
 async function requireAuth(req, res, next) {
   const match = /^Bearer\s+(\S+)$/i.exec(req.get('authorization') || '');
@@ -31,12 +31,9 @@ async function requireAuth(req, res, next) {
   }
 
   try {
-    const { rows } = await pool.query(
-      'SELECT id, email, name, role FROM users WHERE id = $1',
-      [payload.userId]
-    );
-    if (!rows.length) return res.status(401).json({ error: 'Пользователь не найден' });
-    req.user = rows[0];
+    const user = await getUserById(payload.userId);
+    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
+    req.user = user;
     return next();
   } catch (error) {
     return next(error);

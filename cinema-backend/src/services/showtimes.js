@@ -90,4 +90,62 @@ async function createShowtime(input) {
   }
 }
 
-module.exports = { addShowtime, createShowtime, httpError, isValidDate, isValidTime };
+async function getShowtimeById(id) {
+  const { rows } = await pool.query(
+    `SELECT st.id,
+            to_char(st.start_time, 'YYYY-MM-DD') AS start_date,
+            to_char(st.start_time, 'HH24:MI') AS start_time,
+            st.start_time <= clock_timestamp()::timestamp AS is_past,
+            EXISTS (
+              SELECT 1
+              FROM showtimes duplicate
+              WHERE duplicate.id < st.id
+                AND duplicate.movie_id = st.movie_id
+                AND duplicate.hall_id = st.hall_id
+                AND duplicate.start_time = st.start_time
+            ) AS is_duplicate,
+            st.price,
+            m.id AS movie_id, m.title AS movie_title,
+            h.name AS hall_name
+     FROM showtimes st
+     JOIN movies m ON m.id = st.movie_id
+     JOIN halls h ON h.id = st.hall_id
+     WHERE st.id = $1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function getSeatsForShowtime(id) {
+  const showtimeResult = await pool.query(
+    'SELECT hall_id FROM showtimes WHERE id = $1',
+    [id]
+  );
+  if (!showtimeResult.rows.length) return null;
+
+  const { rows } = await pool.query(
+    `SELECT s.id, s.row_number, s.seat_number,
+            EXISTS (
+              SELECT 1
+              FROM tickets t
+              WHERE t.showtime_id = $1
+                AND t.seat_id = s.id
+                AND t.status IN ('booked', 'paid', 'used')
+            ) AS occupied
+     FROM seats s
+     WHERE s.hall_id = $2
+     ORDER BY s.row_number, s.seat_number`,
+    [id, showtimeResult.rows[0].hall_id]
+  );
+  return rows;
+}
+
+module.exports = {
+  addShowtime,
+  createShowtime,
+  getShowtimeById,
+  getSeatsForShowtime,
+  httpError,
+  isValidDate,
+  isValidTime,
+};

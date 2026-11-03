@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useKeyboardLift } from '../src/hooks/useKeyboardLift';
 import { TicketCard } from '../src/features/tickets/components/TicketCard';
 import { api } from '../src/services/api';
 import { clearSession, loadSession, saveSession } from '../src/services/auth';
@@ -47,6 +50,8 @@ function groupTickets(tickets) {
   );
 }
 export default function ProfileScreen() {
+  const scrollRef = useRef(null);
+  const { keyboardOpen, onScroll } = useKeyboardLift(scrollRef);
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [mode, setMode] = useState('login');
@@ -131,117 +136,136 @@ export default function ProfileScreen() {
   };
   const groups = groupTickets(tickets);
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <Pressable onPress={() => router.replace('/')}>
-          <Text style={styles.back}>← Афиша</Text>
-        </Pressable>
-        {user && (
-          <Pressable onPress={logout}>
-            <Text style={styles.logout}>Выйти</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior="padding"
+      enabled={Platform.OS !== 'web'}
+    >
+      <ScrollView
+        ref={scrollRef}
+        style={styles.flex}
+        contentContainerStyle={[
+          styles.content,
+          keyboardOpen && styles.contentKeyboard,
+        ]}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <View style={styles.topRow}>
+          <Pressable onPress={() => router.replace('/')}>
+            <Text style={styles.back}>← Афиша</Text>
           </Pressable>
-        )}
-      </View>
-      {!user ? (
-        <View style={styles.card}>
-          <Text style={styles.title}>Личный кабинет</Text>
-          <Text style={styles.subtitle}>
-            Войдите по логину и паролю, чтобы покупать билеты и видеть свои
-            заказы.
-          </Text>
-          <View style={styles.tabs}>
-            <Pressable
-              style={[styles.tab, mode === 'login' && styles.tabActive]}
-              onPress={() => {
-                setMode('login');
-                setError(null);
-              }}
-            >
-              <Text style={styles.tabText}>Вход</Text>
+          {user && (
+            <Pressable onPress={logout}>
+              <Text style={styles.logout}>Выйти</Text>
             </Pressable>
-            <Pressable
-              style={[styles.tab, mode === 'register' && styles.tabActive]}
-              onPress={() => {
-                setMode('register');
-                setError(null);
-              }}
-            >
-              <Text style={styles.tabText}>Регистрация</Text>
-            </Pressable>
-          </View>
-          {mode === 'register' && (
+          )}
+        </View>
+        {!user ? (
+          <View style={styles.card}>
+            <Text style={styles.title}>Личный кабинет</Text>
+            <Text style={styles.subtitle}>
+              Войдите по логину и паролю, чтобы покупать билеты и видеть свои
+              заказы.
+            </Text>
+            <View style={styles.tabs}>
+              <Pressable
+                style={[styles.tab, mode === 'login' && styles.tabActive]}
+                onPress={() => {
+                  setMode('login');
+                  setError(null);
+                }}
+              >
+                <Text style={styles.tabText}>Вход</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, mode === 'register' && styles.tabActive]}
+                onPress={() => {
+                  setMode('register');
+                  setError(null);
+                }}
+              >
+                <Text style={styles.tabText}>Регистрация</Text>
+              </Pressable>
+            </View>
+            {mode === 'register' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Ваше имя"
+                placeholderTextColor="#7890a4"
+                value={name}
+                onChangeText={setName}
+              />
+            )}
             <TextInput
               style={styles.input}
-              placeholder="Ваше имя"
+              placeholder="Логин"
               placeholderTextColor="#7890a4"
-              value={name}
-              onChangeText={setName}
+              autoCapitalize="none"
+              value={login}
+              onChangeText={setLogin}
             />
-          )}
-          <TextInput
-            style={styles.input}
-            placeholder="Логин"
-            placeholderTextColor="#7890a4"
-            autoCapitalize="none"
-            value={login}
-            onChangeText={setLogin}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Пароль"
-            placeholderTextColor="#7890a4"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            onSubmitEditing={submit}
-          />
-          {error && <Text style={styles.error}>{error}</Text>}
-          <Pressable
-            style={[styles.action, submitting && styles.actionDisabled]}
-            disabled={submitting}
-            onPress={submit}
-          >
-            <Text style={styles.actionText}>
-              {submitting
-                ? 'Подождите…'
-                : mode === 'login'
-                  ? 'Войти'
-                  : 'Создать аккаунт'}
-            </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.title}>Здравствуйте, {user.name}</Text>
-            <Text style={styles.subtitle}>Логин: {user.login}</Text>
-          </View>
-          {user.role === 'admin' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Пароль"
+              placeholderTextColor="#7890a4"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={submit}
+            />
+            {error && <Text style={styles.error}>{error}</Text>}
             <Pressable
-              style={styles.adminButton}
-              onPress={() => router.push('/admin')}
+              style={[styles.action, submitting && styles.actionDisabled]}
+              disabled={submitting}
+              onPress={submit}
             >
-              <Text style={styles.adminButtonText}>Управление афишей</Text>
+              <Text style={styles.actionText}>
+                {submitting
+                  ? 'Подождите…'
+                  : mode === 'login'
+                    ? 'Войти'
+                    : 'Создать аккаунт'}
+              </Text>
             </Pressable>
-          )}
-          <Text style={styles.ordersTitle}>Мои билеты</Text>
-          {loading ? (
-            <ActivityIndicator color="#4fc3f7" />
-          ) : error ? (
-            <Text style={styles.empty}>{error}</Text>
-          ) : groups.length === 0 ? (
-            <Text style={styles.empty}>Купленных билетов пока нет</Text>
-          ) : (
-            groups.map(({ key, ...group }) => (
-              <TicketCard key={key} {...group} />
-            ))
-          )}
-        </>
-      )}
-    </ScrollView>
+          </View>
+        ) : (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.title}>Здравствуйте, {user.name}</Text>
+              <Text style={styles.subtitle}>Логин: {user.login}</Text>
+            </View>
+            {user.role === 'admin' && (
+              <Pressable
+                style={styles.adminButton}
+                onPress={() => router.push('/admin')}
+              >
+                <Text style={styles.adminButtonText}>Управление афишей</Text>
+              </Pressable>
+            )}
+            <Text style={styles.ordersTitle}>Мои билеты</Text>
+            {loading ? (
+              <ActivityIndicator color="#4fc3f7" />
+            ) : error ? (
+              <Text style={styles.empty}>{error}</Text>
+            ) : groups.length === 0 ? (
+              <Text style={styles.empty}>Купленных билетов пока нет</Text>
+            ) : (
+              groups.map(({ key, ...group }) => (
+                <TicketCard key={key} {...group} />
+              ))
+            )}
+          </>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 const styles = StyleSheet.create({
+  contentKeyboard: { paddingBottom: 260 },
+  flex: { flex: 1 },
   container: { flex: 1, backgroundColor: '#f5f8fc' },
   content: { padding: 16, paddingBottom: 40 },
   topRow: {

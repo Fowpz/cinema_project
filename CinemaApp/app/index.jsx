@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,8 +9,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Poster from '../src/components/Poster';
 import { api } from '../src/services/api';
-const PALETTE = ['#1e3a5f', '#1a1a2e', '#1a2a1a', '#3a1a2e', '#2a2a1a'];
 const DAY_LABELS = ['Сегодня', 'Завтра'];
 const WEEKDAYS = [
   'Воскресенье',
@@ -48,11 +47,6 @@ function buildDates() {
     dates.push({ id, label, subtitle });
   }
   return dates;
-}
-
-function colorFor(movieId) {
-  const numericId = parseInt(movieId, 10) || 0;
-  return PALETTE[numericId % PALETTE.length];
 }
 
 export default function HomeScreen() {
@@ -151,104 +145,79 @@ export default function HomeScreen() {
               const availableHalls = movie.hallsShowtimes.filter(
                 (hall) => hall.showtimes.length > 0,
               );
-              return (
-                <View
-                  key={movie.id}
-                  style={[styles.movieRow, isWide && styles.movieRowWide]}
-                >
-                  <Pressable
-                    onPress={() =>
-                      router.push({
-                        pathname: '/movie',
-                        params: { id: movie.id },
-                      })
-                    }
-                  >
-                    {movie.posterUrl ? (
-                      <Image
-                        source={{ uri: movie.posterUrl }}
-                        style={[
-                          styles.posterImage,
-                          isWide && styles.posterImageWide,
-                        ]}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View
-                        style={[
-                          styles.poster,
-                          isWide && styles.posterWide,
-                          { backgroundColor: colorFor(movie.id) },
-                        ]}
-                      >
-                        <Text style={styles.posterTitle}>{movie.title}</Text>
-                        <View style={styles.ageBadge}>
-                          <Text style={styles.ageText}>{movie.ageRating}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </Pressable>
+              const posterWidth = isWide ? 140 : 96;
+              const openMovie = () =>
+                router.push({ pathname: '/movie', params: { id: movie.id } });
 
-                  <View style={styles.info}>
-                    <Pressable
-                      onPress={() =>
-                        router.push({
-                          pathname: '/movie',
-                          params: { id: movie.id },
-                        })
-                      }
-                    >
-                      <Text style={styles.movieTitle}>
-                        {movie.title}{' '}
-                        <Text style={styles.ageInline}>{movie.ageRating}</Text>
-                      </Text>
+              const halls =
+                availableHalls.length === 0 ? (
+                  <Text style={styles.noSessions}>
+                    {selectedDate === dates[0].id
+                      ? 'На сегодня сеансов больше нет'
+                      : 'Нет сеансов на эту дату'}
+                  </Text>
+                ) : (
+                  availableHalls.map((hallSchedule) => (
+                    <View key={hallSchedule.hall} style={styles.hallLine}>
+                      <Text style={styles.hallLabel}>{hallSchedule.hall}</Text>
+                      <View style={styles.timesRow}>
+                        {hallSchedule.showtimes.map((showtime) => (
+                          <Pressable
+                            key={showtime.id}
+                            style={styles.timeChip}
+                            onPress={() =>
+                              router.push({
+                                pathname: '/seats',
+                                params: { id: showtime.id },
+                              })
+                            }
+                          >
+                            <Text style={styles.timeText}>{showtime.time}</Text>
+                            <Text style={styles.priceText}>
+                              от {showtime.price} ₽
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  ))
+                );
+
+              return (
+                <View key={movie.id} style={styles.movieRow}>
+                  <View style={styles.topRow}>
+                    <Pressable onPress={openMovie}>
+                      <Poster
+                        uri={movie.posterUrl}
+                        title={movie.title}
+                        movieId={movie.id}
+                        width={posterWidth}
+                      />
                     </Pressable>
 
-                    <View style={styles.tags}>
-                      {tags.map((tag) => (
-                        <View key={tag} style={styles.tag}>
-                          <Text style={styles.tagText}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
-
-                    {availableHalls.length === 0 ? (
-                      <Text style={styles.noSessions}>
-                        {selectedDate === dates[0].id
-                          ? 'На сегодня сеансов больше нет'
-                          : 'Нет сеансов на эту дату'}
-                      </Text>
-                    ) : (
-                      availableHalls.map((hallSchedule) => (
-                        <View key={hallSchedule.hall} style={styles.hallLine}>
-                          <Text style={styles.hallLabel}>
-                            {hallSchedule.hall}
+                    <View style={styles.info}>
+                      <Pressable onPress={openMovie}>
+                        <Text style={styles.movieTitle}>
+                          {movie.title}{' '}
+                          <Text style={styles.ageInline}>
+                            {movie.ageRating}
                           </Text>
-                          <View style={styles.timesRow}>
-                            {hallSchedule.showtimes.map((showtime) => (
-                              <Pressable
-                                key={showtime.id}
-                                style={styles.timeChip}
-                                onPress={() =>
-                                  router.push({
-                                    pathname: '/seats',
-                                    params: { id: showtime.id },
-                                  })
-                                }
-                              >
-                                <Text style={styles.timeText}>
-                                  {showtime.time}
-                                </Text>
-                                <Text style={styles.priceText}>
-                                  от {showtime.price} ₽
-                                </Text>
-                              </Pressable>
-                            ))}
+                        </Text>
+                      </Pressable>
+
+                      <View style={styles.tags}>
+                        {tags.map((tag) => (
+                          <View key={tag} style={styles.tag}>
+                            <Text style={styles.tagText}>{tag}</Text>
                           </View>
-                        </View>
-                      ))
-                    )}
+                        ))}
+                      </View>
+
+                      {isWide && <View>{halls}</View>}
+                    </View>
                   </View>
+
+                  {!isWide && <View style={styles.hallsBlock}>{halls}</View>}
                 </View>
               );
             })}
@@ -340,7 +309,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   movieRow: {
-    marginBottom: 28,
+    marginBottom: 20,
+    padding: 14,
     backgroundColor: '#ffffff',
     borderRadius: 12,
     overflow: 'hidden',
@@ -352,52 +322,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
   },
-  movieRowWide: {
+  topRow: {
     flexDirection: 'row',
-    padding: 16,
+    gap: 14,
+    alignItems: 'flex-start',
   },
-  poster: {
-    width: '100%',
-    height: 180,
-    justifyContent: 'flex-end',
-    padding: 12,
-  },
-  posterWide: {
-    width: 140,
-    height: 200,
-    borderRadius: 10,
-  },
-  posterImage: {
-    width: '100%',
-    height: 200,
-  },
-  posterImageWide: {
-    width: 140,
-    height: 200,
-    borderRadius: 10,
-  },
-  posterTitle: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  ageBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.88)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  ageText: {
-    color: '#17324d',
-    fontSize: 12,
-    fontWeight: '600',
+  hallsBlock: {
+    marginTop: 14,
   },
   info: {
-    padding: 14,
     flex: 1,
+    minWidth: 0,
   },
   movieTitle: {
     fontSize: 18,
@@ -414,7 +349,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginBottom: 14,
+    marginBottom: 6,
   },
   tag: {
     backgroundColor: '#f3f7fa',
@@ -430,21 +365,22 @@ const styles = StyleSheet.create({
   },
   hallLine: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 10,
-    flexWrap: 'wrap',
   },
   hallLabel: {
     color: '#61758a',
     fontSize: 13,
-    width: 50,
-    marginRight: 10,
+    width: 48,
+    marginRight: 8,
+    paddingTop: 10,
   },
   timesRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     flex: 1,
+    minWidth: 0,
   },
   timeChip: {
     backgroundColor: '#edf6fc',

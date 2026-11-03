@@ -2,7 +2,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,13 +9,16 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import Poster from '../src/components/Poster';
 import { api } from '../src/services/api';
 export default function MovieDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isWide = width >= 720;
-  const posterWidth = isWide ? Math.min(260, width * 0.28) : 190;
+  const posterWidth = isWide
+    ? Math.min(260, width * 0.28)
+    : Math.min(220, width * 0.55);
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -76,24 +78,13 @@ export default function MovieDetailScreen() {
       </Pressable>
 
       <View style={[styles.movieDetails, isWide && styles.movieDetailsWide]}>
-        <View
-          style={[
-            styles.poster,
-            { width: posterWidth },
-            !movie.posterUrl && styles.posterFallback,
-          ]}
-        >
-          {movie.posterUrl ? (
-            <Image
-              source={{ uri: movie.posterUrl }}
-              style={styles.posterImage}
-              resizeMode="cover"
-              accessibilityLabel={`Постер фильма «${movie.title}»`}
-            />
-          ) : (
-            <Text style={styles.posterPlaceholder}>Постер недоступен</Text>
-          )}
-        </View>
+        <Poster
+          uri={movie.posterUrl}
+          title={movie.title}
+          movieId={movie.id}
+          width={posterWidth}
+          style={styles.poster}
+        />
 
         <View style={styles.info}>
           <Text style={styles.title}>
@@ -169,23 +160,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   poster: {
-    aspectRatio: 2 / 3,
-    overflow: 'hidden',
     borderRadius: 16,
-    backgroundColor: '#1e3a5f',
-  },
-  posterImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  posterFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  posterPlaceholder: {
-    color: '#fff',
-    fontSize: 14,
-    textAlign: 'center',
   },
   info: {
     flex: 1,
