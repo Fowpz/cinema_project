@@ -1,25 +1,10 @@
--- База данных приложения «Кинотеатр» (PostgreSQL 13+).
---
--- Бэкенд выполняет этот файл сам при первом запуске, если база ещё пуста.
---
--- Как развернуть вручную в pgAdmin:
---   1. Databases → Create → Database..., имя как в PGDATABASE из .env
---   2. На новой базе: Tools → Query Tool
---   3. Открыть этот файл и выполнить (F5)
---
--- Посмотреть диаграмму: правый клик по базе → ERD For Database.
---
--- Чтобы выполнить скрипт повторно в той же базе, раскомментируйте блок ниже.
--- Он удалит все таблицы вместе с данными.
---
--- DROP TABLE IF EXISTS tickets, orders, showtimes, seats, halls,
---   movie_genres, genres, movies, refresh_tokens, users CASCADE;
+
 
 SET client_encoding = 'UTF8';
 
 BEGIN;
 
--- =========================== Пользователи ===========================
+-- Пользователи
 
 CREATE TABLE users (
   id            SERIAL       PRIMARY KEY,
@@ -35,7 +20,6 @@ CREATE TABLE users (
   CONSTRAINT users_role_check CHECK (role IN ('user', 'admin'))
 );
 
--- Хранится только SHA-256 от токена: утечка таблицы не даёт войти в чужой аккаунт.
 CREATE TABLE refresh_tokens (
   id         SERIAL      PRIMARY KEY,
   user_id    INTEGER     NOT NULL,
@@ -47,7 +31,7 @@ CREATE TABLE refresh_tokens (
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
--- ============================== Фильмы ==============================
+--Фильмы
 
 CREATE TABLE movies (
   id           SERIAL       PRIMARY KEY,
@@ -79,7 +63,7 @@ CREATE TABLE movie_genres (
     FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
 );
 
--- =============================== Залы ===============================
+--Залы
 
 CREATE TABLE halls (
   id            SERIAL      PRIMARY KEY,
@@ -101,9 +85,9 @@ CREATE TABLE seats (
     FOREIGN KEY (hall_id) REFERENCES halls (id) ON DELETE CASCADE
 );
 
--- ============================== Сеансы ==============================
+--  Сеансы 
 
--- start_time — местное время кинотеатра, поэтому без часового пояса.
+-- start_time 
 CREATE TABLE showtimes (
   id         SERIAL        PRIMARY KEY,
   movie_id   INTEGER       NOT NULL,
@@ -120,7 +104,7 @@ CREATE TABLE showtimes (
     FOREIGN KEY (hall_id) REFERENCES halls (id) ON DELETE RESTRICT
 );
 
--- ========================== Заказы и билеты ==========================
+--Заказы и билеты 
 
 CREATE TABLE orders (
   id         SERIAL      PRIMARY KEY,
@@ -153,7 +137,7 @@ CREATE TABLE tickets (
 CREATE UNIQUE INDEX tickets_showtime_seat_active_key
   ON tickets (showtime_id, seat_id) WHERE status <> 'cancelled';
 
--- ============================= Индексы ==============================
+-- Индексы 
 
 CREATE INDEX refresh_tokens_user_id_idx ON refresh_tokens (user_id);
 CREATE INDEX movie_genres_genre_id_idx ON movie_genres (genre_id);
@@ -163,12 +147,6 @@ CREATE INDEX orders_user_id_idx ON orders (user_id);
 CREATE INDEX tickets_order_id_idx ON tickets (order_id);
 CREATE INDEX tickets_seat_id_idx ON tickets (seat_id);
 
--- ========================= Начальные данные ==========================
-
--- Демо-аккаунты, пароли указаны в README.md. Для реального запуска их нужно заменить.
-INSERT INTO users (login, password_hash, name, role) VALUES
-  ('admin', '$2a$10$XzqzD1WovWqywsQFgH2op.3niS2049.NW6sSHvWiKqx4h/MTLDEte', 'Администратор', 'admin'),
-  ('user',  '$2a$10$vEGhBZCjPpQ4zcs08bXkVOwtz6ZRclHu0zNWUbx/LV/Xaog048nby', 'Покупатель', 'user');
 
 INSERT INTO halls (name, rows_count, seats_per_row) VALUES
   ('Зал 1', 8, 10),
@@ -215,9 +193,6 @@ FROM (VALUES
 JOIN movies m ON m.title = link.title
 JOIN genres g ON g.name = link.genre;
 
--- Расписание на 14 дней от даты запуска скрипта: в залах 1–3 по 4 сеанса с шагом 4 часа,
--- этого хватает на самый длинный фильм. Фильмы чередуются по залам и дням.
--- Зал 4 оставлен свободным, чтобы администратору было куда добавлять новые сеансы.
 INSERT INTO showtimes (movie_id, hall_id, start_time, price)
 SELECT m.id,
        h.id,
