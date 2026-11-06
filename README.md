@@ -1,10 +1,10 @@
-# Система кинотеатров
+# Кинотеатр
 
-Учебный проект: мобильное приложение для кинотеатров.
+Учебный проект: веб- и мобильное приложение для кинотеатра.
 
-- `CinemaApp/` — клиент на Expo и React Native.
-- `cinema-backend/` — API на Express и PostgreSQL.
-- `cinema-backend/schema.sql` — структура таблиц и связи между ними.
-- `cinema-backend/src/services/` — функции для работы с БД; маршруты API вызывают эти функции.
+- `cinema-backend/` — API и подключение к PostgreSQL
+- `cinema-web/` — веб-приложение
+- `cinema-mobile/` — мобильное приложение
+- `cinema_db.sql` — схема и данные базы
 
 

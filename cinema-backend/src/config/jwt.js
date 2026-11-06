@@ -1,4 +1,7 @@
-const JWT_ALGORITHM = 'HS256';
+const jwt = require('jsonwebtoken');
+
+const ALGORITHM = 'HS256';
+const ACCESS_TOKEN_TTL = '15m';
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -8,4 +11,24 @@ function getJwtSecret() {
   return secret;
 }
 
-module.exports = { JWT_ALGORITHM, getJwtSecret };
+// Содержимое JWT может прочитать любой, подпись защищает только от подделки.
+// Поэтому в токене лежит лишь случайный идентификатор, остальное берётся из БД.
+function signAccessToken(publicId) {
+  return jwt.sign({}, getJwtSecret(), {
+    algorithm: ALGORITHM,
+    subject: publicId,
+    expiresIn: ACCESS_TOKEN_TTL,
+  });
+}
+
+// Возвращает public_id пользователя или null, если токен неверный или истёк.
+function verifyAccessToken(token) {
+  try {
+    return jwt.verify(token, getJwtSecret(), { algorithms: [ALGORITHM] }).sub || null;
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) return null;
+    throw error;
+  }
+}
+
+module.exports = { getJwtSecret, signAccessToken, verifyAccessToken };

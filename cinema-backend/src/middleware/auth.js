@@ -1,47 +1,23 @@
-const jwt = require('jsonwebtoken');
-const { JWT_ALGORITHM, getJwtSecret } = require('../config/jwt');
-const { getUserById } = require('../services/auth');
+const { verifyAccessToken } = require('../config/jwt');
+const { getUserByPublicId } = require('../services/auth');
+const { asyncHandler } = require('../utils/http');
 
-async function requireAuth(req, res, next) {
+const requireAuth = asyncHandler(async (req, res, next) => {
   const match = /^Bearer\s+(\S+)$/i.exec(req.get('authorization') || '');
   if (!match) return res.status(401).json({ error: 'Не авторизован' });
 
-  let secret;
-  try {
-    secret = getJwtSecret();
-  } catch (error) {
-    return next(error);
-  }
+  const publicId = verifyAccessToken(match[1]);
+  if (!publicId) return res.status(401).json({ error: 'Неверная или истёкшая сессия' });
 
-  let payload;
-  try {
-    payload = jwt.verify(match[1], secret, {
-      algorithms: [JWT_ALGORITHM],
-    });
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError || error instanceof SyntaxError) {
-      return res.status(401).json({ error: 'Неверная или истёкшая сессия' });
-    }
-    return next(error);
-  }
+  const user = await getUserByPublicId(publicId);
+  if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
 
-  if (!payload || typeof payload !== 'object'
-    || !Number.isInteger(payload.userId) || payload.userId <= 0) {
-    return res.status(401).json({ error: 'Неверная или истёкшая сессия' });
-  }
-
-  try {
-    const user = await getUserById(payload.userId);
-    if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
-    req.user = user;
-    return next();
-  } catch (error) {
-    return next(error);
-  }
-}
+  req.user = user;
+  return next();
+});
 
 function requireAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'admin') {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Доступ только для администратора' });
   }
   return next();

@@ -1,33 +1,22 @@
 const express = require('express');
 const {
+  formatMovie,
   getActiveMovies,
   getActiveMovieById,
   getFutureShowtimesForMovie,
 } = require('../services/movies');
+const { asyncHandler } = require('../utils/http');
+const { parseId } = require('../utils/validation');
 
 const router = express.Router();
-
-function formatMovie(row) {
-  return {
-    id: String(row.id),
-    title: row.title,
-    ageRating: row.age_rating,
-    description: row.description,
-    posterUrl: row.poster_url,
-    genres: row.genres,
-    durationMin: row.duration_min,
-  };
-}
 
 function groupByDate(rows) {
   const map = new Map();
   for (const r of rows) {
-    const date = r.start_date;
-    const time = r.start_time;
-    if (!map.has(date)) map.set(date, []);
-    map.get(date).push({
+    if (!map.has(r.start_date)) map.set(r.start_date, []);
+    map.get(r.start_date).push({
       id: String(r.id),
-      time,
+      time: r.start_time,
       hall: r.hall_name,
       hallId: r.hall_id,
       price: Number(r.price),
@@ -36,31 +25,18 @@ function groupByDate(rows) {
   return Array.from(map.entries()).map(([date, showtimes]) => ({ date, showtimes }));
 }
 
-router.get('/', async (req, res, next) => {
-  try {
-    const movies = await getActiveMovies();
-    res.json(movies.map(formatMovie));
-  } catch (err) {
-    next(err);
-  }
-});
+router.get('/', asyncHandler(async (req, res) => {
+  const movies = await getActiveMovies();
+  res.json(movies.map(formatMovie));
+}));
 
-router.get('/:id', async (req, res, next) => {
-  try {
-    const movie = await getActiveMovieById(req.params.id);
-    if (!movie) {
-      return res.status(404).json({ error: 'Фильм не найден' });
-    }
+router.get('/:id', asyncHandler(async (req, res) => {
+  const id = parseId(req.params.id);
+  const movie = id && (await getActiveMovieById(id));
+  if (!movie) return res.status(404).json({ error: 'Фильм не найден' });
 
-    const showtimes = await getFutureShowtimesForMovie(req.params.id);
-
-    res.json({
-      ...formatMovie(movie),
-      showtimesByDate: groupByDate(showtimes),
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+  const showtimes = await getFutureShowtimesForMovie(id);
+  return res.json({ ...formatMovie(movie), showtimesByDate: groupByDate(showtimes) });
+}));
 
 module.exports = router;
